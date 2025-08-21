@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-dp
+  labels:
+    app: {{ .Release.Name }}-dp
+spec:
+  replicas: {{ .Values.replicaCount | default 3 }}
+  minReadySeconds: 10
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      env: {{ .Release.Name }}-dz4
+  template:
+    metadata:
+      labels:
+        env: {{ .Release.Name }}-dz4
+    spec:
+      containers:
+        - name: otus-dz2
+          image: {{ .Values.image.name }}
+          ports:
+            - containerPort: {{ .Values.service.targetPort }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.service.targetPort }}
+            failureThreshold: 1
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            terminationGracePeriodSeconds: 10
+          startupProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.service.targetPort }}
+            failureThreshold: 10
+            initialDelaySeconds: 1
+            periodSeconds: 5
+            terminationGracePeriodSeconds: 10
+          env:
+            - name: JDBC_URL
+              value: jdbc:postgresql://{{ .Release.Name }}-postgresql:5432/{{ .Values.postgresql.global.postgresql.auth.database }}
+            - name: DB_USERNAME
+              value: {{ .Values.postgresql.global.postgresql.auth.username }}
+            - name: APP_HTTP_PORT
+              value: {{ .Values.service.targetPort | quote }}
+            - name: .DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: "{{ .Release.Name }}-pgsecret"
+                  key: password
+          volumeMounts:
+          - name: config
+            mountPath: "/config"
+            readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: {{ .Release.Name }}-config
+            items:
+              - key: "db.yaml"
+                path: "db.yaml"
