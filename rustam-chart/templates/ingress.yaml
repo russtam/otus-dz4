@@ -7,8 +7,8 @@ spec:
     - host: arch.homework
       http:
         paths:
-          - path: /health
-            pathType: Exact
+          - path: /actuator
+            pathType: Prefix
             backend:
               service:
                 name: {{ .Release.Name }}-service
